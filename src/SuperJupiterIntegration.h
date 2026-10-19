@@ -5,13 +5,30 @@
 #if defined(__FAST_MATH__) || (defined(__FINITE_MATH_ONLY__) && __FINITE_MATH_ONLY__ > 0)
 #error "SuperJupiter requires IEEE non-finite checks; disable fast-math"
 #endif
-#include <cmath>
-#include <cstddef>
-#include <cstdint>
-#include <limits>
+#include <float.h>
+#include <math.h>
+#include <stddef.h>
+#include <stdint.h>
 #define SUPERJUPITER_INTEGRATION_VERSION "0.1.0"
 namespace superjupiter {
 namespace integration {
+
+namespace detail {
+inline bool finite(double value) { return value == value && value >= -DBL_MAX && value <= DBL_MAX; }
+inline double oneMinusExpNegative(double ratio) {
+  // Stable at small elapsed/tau without requiring AVR's unavailable expm1.
+  if (ratio < 0.01) {
+    double term = ratio, total = ratio;
+    for (unsigned n = 2; n <= 12; ++n) {
+      term *= -ratio / n;
+      total += term;
+    }
+    return total;
+  }
+  return 1 - ::exp(-ratio);
+}
+} // namespace detail
+
 enum class Method { Trapezoid, Previous };
 enum class Status {
   Seeded,
@@ -42,7 +59,7 @@ public:
   Result push(double value, uint32_t atMs) {
     if (!gap_ || gap_ >= 0x80000000UL)
       return result(Status::InvalidConfig);
-    if (!std::isfinite(value)) {
+    if (!detail::finite(value)) {
       seeded_ = false;
       return result(Status::InvalidInput);
     }
@@ -66,7 +83,7 @@ public:
     const double average = method_ == Method::Previous ? previous_ : previous_ / 2 + value / 2;
     const double area = average * (static_cast<double>(dt) / 1000);
     const double next = total_ + area;
-    if (!std::isfinite(area) || !std::isfinite(next) || covered_ > UINT64_MAX - dt)
+    if (!detail::finite(area) || !detail::finite(next) || covered_ > UINT64_MAX - dt)
       return result(Status::NumericError);
     total_ = next;
     covered_ += dt;
