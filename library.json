@@ -1,6 +1,6 @@
 {
   "name": "SuperJupiterIntegration",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Gap-aware numerical integration of timestamped scalar observations. Portable C++11 by SuperJupiter. Hardware validation pending.",
   "keywords": [
     "sensor",

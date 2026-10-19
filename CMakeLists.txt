@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.16)
-project(SuperJupiterIntegration VERSION 0.1.0 LANGUAGES CXX)
+project(SuperJupiterIntegration VERSION 0.1.1 LANGUAGES CXX)
 
 set(_superjupiter_integration_top_level OFF)
 if(CMAKE_CURRENT_SOURCE_DIR STREQUAL CMAKE_SOURCE_DIR)
@@ -19,6 +19,9 @@ target_compile_features(SuperJupiterIntegration INTERFACE cxx_std_11)
 
 if(SUPERJUPITER_INTEGRATION_BUILD_TESTS)
   enable_testing()
+  add_executable(superjupiter-integration-review tests/review_regressions.cpp)
+  target_link_libraries(superjupiter-integration-review PRIVATE SuperJupiter::Integration)
+  add_test(NAME superjupiter-integration-review COMMAND superjupiter-integration-review)
   add_executable(superjupiter-integration-tests tests/test.cpp)
   target_link_libraries(superjupiter-integration-tests PRIVATE SuperJupiter::Integration)
   add_test(NAME superjupiter-integration-tests COMMAND superjupiter-integration-tests)

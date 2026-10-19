@@ -2,30 +2,20 @@
 // Copyright (c) 2026 SuperJupiter
 #ifndef SUPERJUPITER_INTEGRATION_H
 #define SUPERJUPITER_INTEGRATION_H
-#if defined(__FAST_MATH__) || (defined(__FINITE_MATH_ONLY__) && __FINITE_MATH_ONLY__ > 0)
+#if defined(__FAST_MATH__) ||                                                  \
+    (defined(__FINITE_MATH_ONLY__) && __FINITE_MATH_ONLY__ > 0)
 #error "SuperJupiter requires IEEE non-finite checks; disable fast-math"
 #endif
 #include <float.h>
-#include <math.h>
 #include <stddef.h>
 #include <stdint.h>
-#define SUPERJUPITER_INTEGRATION_VERSION "0.1.0"
+#define SUPERJUPITER_INTEGRATION_VERSION "0.1.1"
 namespace superjupiter {
 namespace integration {
 
 namespace detail {
-inline bool finite(double value) { return value == value && value >= -DBL_MAX && value <= DBL_MAX; }
-inline double oneMinusExpNegative(double ratio) {
-  // Stable at small elapsed/tau without requiring AVR's unavailable expm1.
-  if (ratio < 0.01) {
-    double term = ratio, total = ratio;
-    for (unsigned n = 2; n <= 12; ++n) {
-      term *= -ratio / n;
-      total += term;
-    }
-    return total;
-  }
-  return 1 - ::exp(-ratio);
+inline bool finite(double value) {
+  return value == value && value >= -DBL_MAX && value <= DBL_MAX;
 }
 } // namespace detail
 
@@ -47,24 +37,36 @@ struct Result {
 class Integration {
   uint32_t gap_, last_;
   Method method_;
-  bool seeded_;
+  bool seeded_, timed_;
   double previous_, total_;
   uint64_t covered_, skipped_;
-  Result result(Status s) const { return Result{s, total_, covered_, skipped_}; }
+  Result result(Status s) const {
+    return Result{s, total_, covered_, skipped_};
+  }
 
 public:
-  explicit Integration(uint32_t maxGapMs = 10000, Method method = Method::Trapezoid)
-      : gap_(maxGapMs), last_(0), method_(method), seeded_(false), previous_(0), total_(0),
-        covered_(0), skipped_(0) {}
+  explicit Integration(uint32_t maxGapMs = 10000,
+                       Method method = Method::Trapezoid)
+      : gap_(maxGapMs), last_(0), method_(method), seeded_(false),
+        timed_(false), previous_(0), total_(0), covered_(0), skipped_(0) {}
   Result push(double value, uint32_t atMs) {
-    if (!gap_ || gap_ >= 0x80000000UL)
+    if (!gap_ || gap_ >= 0x80000000UL ||
+        (method_ != Method::Trapezoid && method_ != Method::Previous))
       return result(Status::InvalidConfig);
+    if (timed_) {
+      const uint32_t dt = atMs - last_;
+      if (!dt || dt >= 0x80000000UL)
+        return result(Status::InvalidTime);
+    }
     if (!detail::finite(value)) {
       seeded_ = false;
+      timed_ = true;
+      last_ = atMs;
       return result(Status::InvalidInput);
     }
     if (!seeded_) {
       seeded_ = true;
+      timed_ = true;
       previous_ = value;
       last_ = atMs;
       return result(Status::Seeded);
@@ -80,10 +82,12 @@ public:
       last_ = atMs;
       return result(Status::GapSkipped);
     }
-    const double average = method_ == Method::Previous ? previous_ : previous_ / 2 + value / 2;
+    const double average =
+        method_ == Method::Previous ? previous_ : previous_ / 2 + value / 2;
     const double area = average * (static_cast<double>(dt) / 1000);
     const double next = total_ + area;
-    if (!detail::finite(area) || !detail::finite(next) || covered_ > UINT64_MAX - dt)
+    if (!detail::finite(area) || !detail::finite(next) ||
+        covered_ > UINT64_MAX - dt)
       return result(Status::NumericError);
     total_ = next;
     covered_ += dt;
@@ -94,6 +98,8 @@ public:
   Result summary() const { return result(Status::Integrated); }
   void reset() {
     seeded_ = false;
+    timed_ = false;
+    last_ = 0;
     previous_ = total_ = 0;
     covered_ = skipped_ = 0;
   }
