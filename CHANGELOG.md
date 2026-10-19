@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.2 - 2026-10-19
+
+- Preserve representable subnormal integrals while retaining overflow-safe trapezoid averages.
+- Hardware validation pending.
+
+
 ## 0.1.1 - 2026-10-19
 
 - Removed unused duplicated math helpers and unnecessary includes.

@@ -41,3 +41,8 @@ See [INTEROPERABILITY.md](INTEROPERABILITY.md) for units, timestamp horizons, nu
 - Chronology survives invalid inputs without integrating across them; invalid integration methods rejected.
 
 Numeric invalidity breaks continuity but the observation timestamp is retained. Duplicate or backwards observations, including non-finite ones, are rejected without mutation.
+
+
+## Release 0.1.2
+
+Preserve representable subnormal integrals while retaining overflow-safe trapezoid averages. Hardware validation pending.

@@ -9,7 +9,7 @@
 #include <float.h>
 #include <stddef.h>
 #include <stdint.h>
-#define SUPERJUPITER_INTEGRATION_VERSION "0.1.1"
+#define SUPERJUPITER_INTEGRATION_VERSION "0.1.2"
 namespace superjupiter {
 namespace integration {
 
@@ -82,8 +82,15 @@ public:
       last_ = atMs;
       return result(Status::GapSkipped);
     }
+    // Sum first when safe, preserving subnormals. Halve first only near
+    // overflow, where loss of a tiny half cannot affect the rounded result.
+    const double halfMax = DBL_MAX / 2;
+    const bool safeSum = previous_ >= -halfMax && previous_ <= halfMax &&
+                         value >= -halfMax && value <= halfMax;
     const double average =
-        method_ == Method::Previous ? previous_ : previous_ / 2 + value / 2;
+        method_ == Method::Previous
+            ? previous_
+            : (safeSum ? (previous_ + value) / 2 : previous_ / 2 + value / 2);
     const double area = average * (static_cast<double>(dt) / 1000);
     const double next = total_ + area;
     if (!detail::finite(area) || !detail::finite(next) ||

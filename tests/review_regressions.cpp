@@ -33,6 +33,16 @@ int main() {
   CHECK(integral.push(2, 301).valueSeconds == 0.4);
   CHECK(Integration(1000, static_cast<Method>(99)).push(1, 0).status ==
         Status::InvalidConfig);
+  const double tiny = std::numeric_limits<double>::denorm_min();
+  Integration verySmall;
+  verySmall.push(tiny, 0);
+  CHECK(verySmall.push(tiny, 1000).valueSeconds == tiny);
+  Integration smallRamp;
+  smallRamp.push(tiny, 0);
+  CHECK(smallRamp.push(5 * tiny, 1000).valueSeconds == 3 * tiny);
+  Integration veryLarge;
+  veryLarge.push(DBL_MAX, 0);
+  CHECK(veryLarge.push(DBL_MAX, 1000).valueSeconds == DBL_MAX);
 
   std::printf("PASS SuperJupiterIntegration review: %u checks\n", checks);
 }
